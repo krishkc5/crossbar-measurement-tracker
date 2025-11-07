@@ -311,6 +311,42 @@ button {
     margin-bottom: 15px;
 }
 
+.sharing-info {
+    background: #f0f7ff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #4CAF50;
+}
+
+.sharing-info h4 {
+    color: #2e7d32;
+    margin-bottom: 10px;
+}
+
+.sharing-info p {
+    color: #555;
+    margin-bottom: 10px;
+    font-size: 0.95em;
+}
+
+.sharing-info ol {
+    margin-left: 20px;
+    color: #555;
+    font-size: 0.95em;
+}
+
+.sharing-info ol li {
+    margin-bottom: 5px;
+}
+
+.sharing-info .note {
+    margin-top: 10px;
+    font-style: italic;
+    font-size: 0.85em;
+    color: #666;
+}
+
 .coord-inputs {
     display: flex;
     gap: 15px;

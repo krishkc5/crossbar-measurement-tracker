@@ -1,6 +1,14 @@
-// Initialize Gun.js with public relay peers for zero-config setup
-const gun = Gun(['https://gun-manhattan.herokuapp.com/gun', 'https://gun-us.herokuapp.com/gun']);
-const entriesDB = gun.get('crossbar-entries');
+// Initialize Gun.js with multiple public relay peers for better reliability
+const gun = Gun({
+    peers: [
+        'https://gun-manhattan.herokuapp.com/gun',
+        'https://gun-us.herokuapp.com/gun',
+        'https://gunjs.herokuapp.com/gun'
+    ],
+    localStorage: true,
+    radisk: true
+});
+const entriesDB = gun.get('crossbar-measurement-tracker-v1');
 
 let currentEntry = null;
 let entries = [];
