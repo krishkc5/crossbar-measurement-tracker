@@ -1,20 +1,58 @@
-// Firebase Realtime Database for real-time synchronization
+/**
+ * Crossbar Array Measurement Tracker
+ *
+ * A real-time collaborative application for tracking ferroelectric diode measurements
+ * on crossbar arrays. Supports arrays from 8x8 to 128x128 devices with instant
+ * synchronization across multiple users via Firebase Realtime Database.
+ *
+ * @author Krishna Chemudupati
+ * @version 2.0.0
+ * @license MIT
+ */
+
+// ============================================================================
+// Global State Management
+// ============================================================================
+
+/** @type {firebase.database.Database} Firebase database instance */
 let db = null;
+
+/** @type {firebase.database.Reference} Reference to entries collection */
 let entriesRef = null;
+
+/** @type {Object|null} Currently loaded measurement entry */
 let currentEntry = null;
+
+/** @type {Array<Object>} All available measurement entries */
 let entries = [];
+
+/** @type {boolean} Flag to prevent recursive updates during sync */
 let isUpdating = false;
 
-// Initialize Firebase when DOM loads
+// ============================================================================
+// Application Initialization
+// ============================================================================
+
+/**
+ * Initialize application when DOM is fully loaded
+ * Sets up Firebase connection and event listeners
+ */
 window.addEventListener('DOMContentLoaded', () => {
     initializeFirebase();
     setupEventListeners();
 });
 
+/**
+ * Attach all event listeners to DOM elements
+ * Centralizes event binding for maintainability
+ */
 function setupEventListeners() {
+    // Entry management
     document.getElementById('createEntry').addEventListener('click', createNewEntry);
     document.getElementById('loadEntry').addEventListener('click', loadSelectedEntry);
     document.getElementById('deleteEntry').addEventListener('click', deleteSelectedEntry);
+
+    // Data export/import
     document.getElementById('exportData').addEventListener('click', exportCurrentEntry);
     document.getElementById('importData').addEventListener('click', () => {
         document.getElementById('importFile').click();
@@ -23,7 +61,7 @@ function setupEventListeners() {
     document.getElementById('exportImage').addEventListener('click', exportAsImage);
     document.getElementById('clearAll').addEventListener('click', clearAllMeasurements);
 
-    // Quick navigation
+    // Quick navigation for large arrays
     document.getElementById('goToDevice').addEventListener('click', goToDevice);
     document.getElementById('cycleDevice').addEventListener('click', cycleDeviceByCoords);
 
@@ -32,6 +70,16 @@ function setupEventListeners() {
     document.getElementById('topElectrode').addEventListener('keydown', handleTopElectrodeKey);
 }
 
+// ============================================================================
+// Firebase Integration
+// ============================================================================
+
+/**
+ * Initialize Firebase Realtime Database connection
+ * Sets up real-time listeners for data synchronization and connection monitoring
+ *
+ * @throws {Error} If Firebase SDK is not loaded or initialization fails
+ */
 function initializeFirebase() {
     if (typeof firebase === 'undefined') {
         console.error('Firebase SDK not loaded');
@@ -40,11 +88,12 @@ function initializeFirebase() {
     }
 
     try {
+        // Initialize Firebase with configuration from firebase-config.js
         firebase.initializeApp(firebaseConfig);
         db = firebase.database();
         entriesRef = db.ref('entries');
 
-        // Monitor connection status
+        // Monitor connection status using Firebase's built-in .info/connected
         const connectedRef = db.ref('.info/connected');
         connectedRef.on('value', (snap) => {
             if (snap.val() === true) {
@@ -54,14 +103,14 @@ function initializeFirebase() {
             }
         });
 
-        // Listen for real-time updates
+        // Listen for real-time updates to entries collection
         entriesRef.on('value', (snapshot) => {
             isUpdating = true;
             const data = snapshot.val();
             entries = data ? Object.values(data) : [];
             updateEntrySelector();
 
-            // Update current entry if it was modified
+            // Update currently loaded entry if it was modified by another user
             if (currentEntry) {
                 const updatedEntry = entries.find(e => e.name === currentEntry.name);
                 if (updatedEntry && JSON.stringify(updatedEntry.measurements) !== JSON.stringify(currentEntry.measurements)) {
@@ -78,6 +127,13 @@ function initializeFirebase() {
         updateConnectionStatus(false, 'Connection Error');
     }
 }
+
+/**
+ * Update the connection status indicator in the UI
+ *
+ * @param {boolean} isConnected - Whether Firebase is connected
+ * @param {string} message - Status message to display
+ */
 
 function updateConnectionStatus(isConnected, message) {
     const statusElement = document.getElementById('connectionStatus');
