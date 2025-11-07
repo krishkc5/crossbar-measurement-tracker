@@ -51,6 +51,19 @@ function updateConnectionStatus(isConnected, message) {
 }
 
 function loadEntries() {
+    // Load from localStorage first as fallback
+    const stored = localStorage.getItem('crossbar-entries-backup');
+    if (stored) {
+        try {
+            const localEntries = JSON.parse(stored);
+            entries = localEntries;
+            updateEntrySelector();
+        } catch (e) {
+            console.error('Error loading from localStorage:', e);
+        }
+    }
+
+    // Then sync with Gun.js for real-time updates
     entriesDB.map().on((data, key) => {
         if (!data || data === null) return;
 
@@ -62,6 +75,9 @@ function loadEntries() {
         } else {
             entries.push(data);
         }
+
+        // Backup to localStorage
+        localStorage.setItem('crossbar-entries-backup', JSON.stringify(entries));
 
         updateEntrySelector();
 
@@ -80,6 +96,15 @@ function saveEntry(entry) {
 
     const key = sanitizeKey(entry.name);
     entriesDB.get(key).put(entry);
+
+    // Also update localStorage backup
+    const existingIndex = entries.findIndex(e => e.name === entry.name);
+    if (existingIndex >= 0) {
+        entries[existingIndex] = entry;
+    } else {
+        entries.push(entry);
+    }
+    localStorage.setItem('crossbar-entries-backup', JSON.stringify(entries));
 }
 
 function deleteEntry(entryName) {
@@ -87,6 +112,7 @@ function deleteEntry(entryName) {
     entriesDB.get(key).put(null);
 
     entries = entries.filter(e => e.name !== entryName);
+    localStorage.setItem('crossbar-entries-backup', JSON.stringify(entries));
     updateEntrySelector();
 }
 
