@@ -21,6 +21,7 @@ function setupEventListeners() {
         document.getElementById('importFile').click();
     });
     document.getElementById('importFile').addEventListener('change', importFromJSON);
+    document.getElementById('exportImage').addEventListener('click', exportAsImage);
     document.getElementById('clearAll').addEventListener('click', clearAllMeasurements);
 
     // Quick navigation
@@ -556,4 +557,182 @@ function importFromJSON(e) {
 
     reader.readAsText(file);
     e.target.value = ''; // Reset file input
+}
+
+// Export as PNG image with statistics
+function exportAsImage() {
+    if (!currentEntry) return;
+
+    const size = currentEntry.size;
+    const cellSize = size > 64 ? 8 : (size > 32 ? 12 : 20);
+    const padding = 80;
+    const statsHeight = 200;
+    const titleHeight = 80;
+
+    const gridWidth = size * cellSize;
+    const gridHeight = size * cellSize;
+    const canvasWidth = gridWidth + (padding * 2);
+    const canvasHeight = gridHeight + (padding * 2) + statsHeight + titleHeight;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // Title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(currentEntry.name, canvasWidth / 2, 40);
+    ctx.font = '16px Arial';
+    ctx.fillText(`${size}x${size} Crossbar Array`, canvasWidth / 2, 65);
+
+    // Draw grid
+    const gridStartY = titleHeight + padding;
+    for (let i = 0; i < size * size; i++) {
+        const row = Math.floor(i / size);
+        const col = i % size;
+        const x = padding + (col * cellSize);
+        const y = gridStartY + (row * cellSize);
+
+        const state = currentEntry.measurements[i];
+
+        // Cell color
+        switch(state) {
+            case 1: // Success
+                ctx.fillStyle = '#4CAF50';
+                break;
+            case 2: // Failed
+                ctx.fillStyle = '#f44336';
+                break;
+            case 3: // Warning
+                ctx.fillStyle = '#ffc107';
+                break;
+            default: // Unmeasured
+                ctx.fillStyle = '#ffffff';
+                break;
+        }
+
+        ctx.fillRect(x, y, cellSize, cellSize);
+
+        // Cell border
+        ctx.strokeStyle = '#cccccc';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+    }
+
+    // Grid border
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(padding, gridStartY, gridWidth, gridHeight);
+
+    // Axis labels
+    ctx.fillStyle = '#666';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+
+    // Bottom label (Top Electrode)
+    ctx.fillText('Top Electrode (T)', canvasWidth / 2, gridStartY + gridHeight + 35);
+
+    // Left label (Bottom Electrode) - rotated
+    ctx.save();
+    ctx.translate(25, gridStartY + gridHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Bottom Electrode (B)', 0, 0);
+    ctx.restore();
+
+    // Statistics section
+    const statsY = gridStartY + gridHeight + 60;
+    const measurements = currentEntry.measurements;
+    const total = measurements.length;
+    const successCount = measurements.filter(m => m === 1).length;
+    const failedCount = measurements.filter(m => m === 2).length;
+    const warningCount = measurements.filter(m => m === 3).length;
+    const unmeasuredCount = measurements.filter(m => m === 0).length;
+
+    // Stats title
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('Statistics:', padding, statsY);
+
+    // Stats data
+    ctx.font = '14px Arial';
+    const statLineHeight = 25;
+    let currentStatY = statsY + 30;
+
+    const stats = [
+        { label: 'Total Devices:', value: total, color: '#333' },
+        { label: 'Successful:', value: `${successCount} (${((successCount / total) * 100).toFixed(1)}%)`, color: '#4CAF50' },
+        { label: 'Failed:', value: `${failedCount} (${((failedCount / total) * 100).toFixed(1)}%)`, color: '#f44336' },
+        { label: 'Misaligned:', value: `${warningCount} (${((warningCount / total) * 100).toFixed(1)}%)`, color: '#ffc107' },
+        { label: 'Unmeasured:', value: `${unmeasuredCount} (${((unmeasuredCount / total) * 100).toFixed(1)}%)`, color: '#999' }
+    ];
+
+    const col1X = padding;
+    const col2X = canvasWidth / 2;
+
+    stats.forEach((stat, index) => {
+        const x = index < 3 ? col1X : col2X;
+        const y = index < 3 ? currentStatY + (index * statLineHeight) : currentStatY + ((index - 3) * statLineHeight);
+
+        ctx.fillStyle = '#666';
+        ctx.fillText(stat.label, x, y);
+
+        ctx.fillStyle = stat.color;
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(stat.value, x + 130, y);
+        ctx.font = '14px Arial';
+    });
+
+    // Legend
+    const legendY = statsY + 100;
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText('Legend:', padding, legendY);
+
+    const legendItems = [
+        { color: '#ffffff', label: 'Unmeasured', border: '#ccc' },
+        { color: '#4CAF50', label: 'Successful', border: '#4CAF50' },
+        { color: '#f44336', label: 'Failed', border: '#f44336' },
+        { color: '#ffc107', label: 'Misaligned', border: '#ffc107' }
+    ];
+
+    let legendX = padding + 80;
+    legendItems.forEach(item => {
+        ctx.fillStyle = item.color;
+        ctx.fillRect(legendX, legendY - 12, 20, 20);
+        ctx.strokeStyle = item.border;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(legendX, legendY - 12, 20, 20);
+
+        ctx.fillStyle = '#666';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(item.label, legendX + 25, legendY + 3);
+
+        legendX += 120;
+    });
+
+    // Export timestamp
+    ctx.fillStyle = '#999';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`Generated: ${new Date().toLocaleString()}`, canvasWidth / 2, canvasHeight - 15);
+
+    // Convert to PNG and download
+    canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${currentEntry.name}_visualization.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }, 'image/png');
 }
