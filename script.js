@@ -1,23 +1,14 @@
-// Initialize Gun.js with multiple public relay peers for better reliability
-const gun = Gun({
-    peers: [
-        'https://gun-manhattan.herokuapp.com/gun',
-        'https://gun-us.herokuapp.com/gun',
-        'https://gunjs.herokuapp.com/gun'
-    ],
-    localStorage: true,
-    radisk: true
-});
-const entriesDB = gun.get('crossbar-measurement-tracker-v1');
-
+// Firebase Realtime Database for real-time synchronization
+let db = null;
+let entriesRef = null;
 let currentEntry = null;
 let entries = [];
 let isUpdating = false;
 
+// Initialize Firebase when DOM loads
 window.addEventListener('DOMContentLoaded', () => {
+    initializeFirebase();
     setupEventListeners();
-    loadEntries();
-    monitorConnection();
 });
 
 function setupEventListeners() {
@@ -41,14 +32,51 @@ function setupEventListeners() {
     document.getElementById('topElectrode').addEventListener('keydown', handleTopElectrodeKey);
 }
 
-function monitorConnection() {
-    updateConnectionStatus(true, 'Connected');
+function initializeFirebase() {
+    if (typeof firebase === 'undefined') {
+        console.error('Firebase SDK not loaded');
+        updateConnectionStatus(false, 'Firebase not loaded');
+        return;
+    }
 
-    // Simple connection check
-    setInterval(() => {
-        const status = navigator.onLine;
-        updateConnectionStatus(status, status ? 'Connected' : 'Offline');
-    }, 5000);
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        entriesRef = db.ref('entries');
+
+        // Monitor connection status
+        const connectedRef = db.ref('.info/connected');
+        connectedRef.on('value', (snap) => {
+            if (snap.val() === true) {
+                updateConnectionStatus(true, 'Connected');
+            } else {
+                updateConnectionStatus(false, 'Disconnected');
+            }
+        });
+
+        // Listen for real-time updates
+        entriesRef.on('value', (snapshot) => {
+            isUpdating = true;
+            const data = snapshot.val();
+            entries = data ? Object.values(data) : [];
+            updateEntrySelector();
+
+            // Update current entry if it was modified
+            if (currentEntry) {
+                const updatedEntry = entries.find(e => e.name === currentEntry.name);
+                if (updatedEntry && JSON.stringify(updatedEntry.measurements) !== JSON.stringify(currentEntry.measurements)) {
+                    currentEntry = updatedEntry;
+                    updateGridCells();
+                    updateStatistics();
+                }
+            }
+            isUpdating = false;
+        });
+
+    } catch (error) {
+        console.error('Firebase initialization error:', error);
+        updateConnectionStatus(false, 'Connection Error');
+    }
 }
 
 function updateConnectionStatus(isConnected, message) {
@@ -59,74 +87,35 @@ function updateConnectionStatus(isConnected, message) {
     statusText.textContent = message;
 }
 
-function loadEntries() {
-    // Load from localStorage first as fallback
-    const stored = localStorage.getItem('crossbar-entries-backup');
-    if (stored) {
-        try {
-            const localEntries = JSON.parse(stored);
-            entries = localEntries;
-            updateEntrySelector();
-        } catch (e) {
-            console.error('Error loading from localStorage:', e);
-        }
-    }
-
-    // Then sync with Gun.js for real-time updates
-    entriesDB.map().on((data, key) => {
-        if (!data || data === null) return;
-
-        isUpdating = true;
-
-        const existingIndex = entries.findIndex(e => e.name === data.name);
-        if (existingIndex >= 0) {
-            entries[existingIndex] = data;
-        } else {
-            entries.push(data);
-        }
-
-        // Backup to localStorage
-        localStorage.setItem('crossbar-entries-backup', JSON.stringify(entries));
-
-        updateEntrySelector();
-
-        if (currentEntry && currentEntry.name === data.name) {
-            currentEntry = data;
-            updateStatistics();
-            updateGridCells();
-        }
-
-        isUpdating = false;
-    });
-}
-
 function saveEntry(entry) {
-    if (isUpdating) return;
+    if (isUpdating || !entriesRef) return;
 
-    const key = sanitizeKey(entry.name);
-    entriesDB.get(key).put(entry);
+    entry.lastModified = new Date().toISOString();
 
-    // Also update localStorage backup
-    const existingIndex = entries.findIndex(e => e.name === entry.name);
-    if (existingIndex >= 0) {
-        entries[existingIndex] = entry;
-    } else {
-        entries.push(entry);
-    }
-    localStorage.setItem('crossbar-entries-backup', JSON.stringify(entries));
+    // Save to Firebase using entry name as key
+    const sanitizedName = entry.name.replace(/[.#$[\]]/g, '_');
+    entriesRef.child(sanitizedName).set(entry)
+        .then(() => {
+            console.log('Entry saved successfully');
+        })
+        .catch((error) => {
+            console.error('Error saving entry:', error);
+            alert('Failed to save entry. Please check your connection.');
+        });
 }
 
 function deleteEntry(entryName) {
-    const key = sanitizeKey(entryName);
-    entriesDB.get(key).put(null);
+    if (!entriesRef) return;
 
-    entries = entries.filter(e => e.name !== entryName);
-    localStorage.setItem('crossbar-entries-backup', JSON.stringify(entries));
-    updateEntrySelector();
-}
-
-function sanitizeKey(key) {
-    return key.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const sanitizedName = entryName.replace(/[.#$[\]]/g, '_');
+    entriesRef.child(sanitizedName).remove()
+        .then(() => {
+            console.log('Entry deleted successfully');
+        })
+        .catch((error) => {
+            console.error('Error deleting entry:', error);
+            alert('Failed to delete entry. Please check your connection.');
+        });
 }
 
 function createNewEntry() {

@@ -109,14 +109,10 @@
             </div>
 
             <div class="sharing-info">
-                <h4>Sharing Data</h4>
-                <p>To share measurements with your advisor:</p>
-                <ol>
-                    <li>Click "Export Data (JSON)" to save your measurements</li>
-                    <li>Send the JSON file to your advisor</li>
-                    <li>They can click "Import from JSON" to load it</li>
-                </ol>
-                <p class="note">Note: Changes auto-save in your browser. For collaboration, use export/import.</p>
+                <h4>Real-Time Collaboration</h4>
+                <p>All changes are automatically synchronized in real-time across all users. Just share this URL with your advisor:</p>
+                <p><strong>https://krishkc5.github.io/crossbar-measurement-tracker/</strong></p>
+                <p class="note">Note: You can also export data as JSON or PNG for backup and offline analysis.</p>
             </div>
 
             <div class="grid-container">
@@ -131,8 +127,10 @@
         <div class="tooltip-preview"></div>
     </div>
 
-    <!-- Gun.js for real-time sync -->
-    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <!-- Firebase SDK for real-time sync -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
