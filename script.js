@@ -17,19 +17,19 @@ function setupEventListeners() {
     document.getElementById('loadEntry').addEventListener('click', loadSelectedEntry);
     document.getElementById('deleteEntry').addEventListener('click', deleteSelectedEntry);
     document.getElementById('exportData').addEventListener('click', exportCurrentEntry);
+    document.getElementById('importData').addEventListener('click', () => {
+        document.getElementById('importFile').click();
+    });
+    document.getElementById('importFile').addEventListener('change', importFromJSON);
     document.getElementById('clearAll').addEventListener('click', clearAllMeasurements);
 
     // Quick navigation
     document.getElementById('goToDevice').addEventListener('click', goToDevice);
     document.getElementById('cycleDevice').addEventListener('click', cycleDeviceByCoords);
 
-    // Enter key support
-    document.getElementById('bottomElectrode').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') goToDevice();
-    });
-    document.getElementById('topElectrode').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') goToDevice();
-    });
+    // Enhanced keyboard navigation
+    document.getElementById('bottomElectrode').addEventListener('keydown', handleBottomElectrodeKey);
+    document.getElementById('topElectrode').addEventListener('keydown', handleTopElectrodeKey);
 }
 
 function monitorConnection() {
@@ -220,6 +220,12 @@ function renderGrid() {
         updateCellAppearance(cell, currentEntry.measurements[i]);
         cell.addEventListener('click', () => handleCellClick(i));
 
+        // Add hover tooltip for large arrays
+        if (size > 32) {
+            cell.addEventListener('mouseenter', (e) => showTooltip(e, row, col, currentEntry.measurements[i]));
+            cell.addEventListener('mouseleave', hideTooltip);
+        }
+
         grid.appendChild(cell);
     }
 }
@@ -406,16 +412,13 @@ function goToDevice() {
 
     const cell = document.querySelector(`[data-index="${index}"]`);
     if (cell) {
-        // Remove previous highlights
         document.querySelectorAll('.device-cell.highlight').forEach(c => {
             c.classList.remove('highlight');
         });
 
-        // Highlight and scroll to cell
         cell.classList.add('highlight');
         cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
 
-        // Remove highlight after animation
         setTimeout(() => {
             cell.classList.remove('highlight');
         }, 1000);
@@ -434,24 +437,123 @@ function cycleDeviceByCoords() {
 
     handleCellClick(index);
 
-    // Also highlight the cell briefly
     const cell = document.querySelector(`[data-index="${index}"]`);
     if (cell) {
         cell.classList.add('highlight');
+        cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
         setTimeout(() => {
             cell.classList.remove('highlight');
         }, 500);
     }
+}
 
-    // Auto-increment to next device for easier sequential entry
-    const t = parseInt(top);
-    const b = parseInt(bottom);
-    const size = currentEntry.size;
-
-    if (t < size - 1) {
-        document.getElementById('topElectrode').value = t + 1;
-    } else if (b < size - 1) {
-        document.getElementById('bottomElectrode').value = b + 1;
-        document.getElementById('topElectrode').value = 0;
+// Enhanced keyboard navigation
+function handleBottomElectrodeKey(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) {
+            // Shift+Enter - stay on bottom electrode (do nothing)
+        } else {
+            // Enter - move to top electrode
+            document.getElementById('topElectrode').focus();
+            document.getElementById('topElectrode').select();
+        }
     }
+}
+
+function handleTopElectrodeKey(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const bottom = document.getElementById('bottomElectrode').value;
+        const top = document.getElementById('topElectrode').value;
+        const index = getDeviceIndex(bottom, top);
+
+        if (index < 0) {
+            alert('Please enter valid coordinates');
+            return;
+        }
+
+        if (e.shiftKey) {
+            // Shift+Enter - go back to bottom electrode, keep values
+            document.getElementById('bottomElectrode').focus();
+            document.getElementById('bottomElectrode').select();
+        } else {
+            // Enter - cycle device state
+            handleCellClick(index);
+
+            const cell = document.querySelector(`[data-index="${index}"]`);
+            if (cell) {
+                cell.classList.add('highlight');
+                cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                setTimeout(() => {
+                    cell.classList.remove('highlight');
+                }, 500);
+            }
+        }
+    }
+}
+
+// Tooltip functions
+function showTooltip(e, row, col, state) {
+    const tooltip = document.getElementById('deviceTooltip');
+    const coords = tooltip.querySelector('.tooltip-coords');
+    const preview = tooltip.querySelector('.tooltip-preview');
+
+    coords.textContent = `B: ${row} | T: ${col}`;
+
+    preview.classList.remove('success', 'failed', 'warning');
+    if (state === 1) preview.classList.add('success');
+    else if (state === 2) preview.classList.add('failed');
+    else if (state === 3) preview.classList.add('warning');
+
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.pageX + 15) + 'px';
+    tooltip.style.top = (e.pageY + 15) + 'px';
+}
+
+function hideTooltip() {
+    document.getElementById('deviceTooltip').style.display = 'none';
+}
+
+// Import from JSON
+function importFromJSON(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const data = JSON.parse(event.target.result);
+
+            if (!data.name || !data.size || !data.measurements || !data.measurements.raw) {
+                alert('Invalid JSON format. Please use a file exported from this app.');
+                return;
+            }
+
+            const entry = {
+                name: data.name,
+                size: data.size,
+                createdAt: data.createdAt || new Date().toISOString(),
+                lastModified: new Date().toISOString(),
+                measurements: data.measurements.raw
+            };
+
+            // Check if entry already exists
+            if (entries.find(e => e.name === entry.name)) {
+                if (!confirm(`Entry "${entry.name}" already exists. Overwrite?`)) {
+                    return;
+                }
+            }
+
+            saveEntry(entry);
+            loadEntry(entry);
+            alert('Successfully imported: ' + entry.name);
+
+        } catch (err) {
+            alert('Error reading JSON file: ' + err.message);
+        }
+    };
+
+    reader.readAsText(file);
+    e.target.value = ''; // Reset file input
 }

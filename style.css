@@ -361,6 +361,46 @@ button {
     }
 }
 
+.device-tooltip {
+    position: fixed;
+    background: white;
+    border: 3px solid #2196F3;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    z-index: 10000;
+    transition: opacity 0.15s ease;
+}
+
+.tooltip-coords {
+    font-size: 16px;
+    font-weight: bold;
+    color: #1565c0;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.tooltip-preview {
+    width: 60px;
+    height: 60px;
+    border-radius: 4px;
+    border: 2px solid #ddd;
+    background: white;
+}
+
+.tooltip-preview.success {
+    background: #4CAF50;
+}
+
+.tooltip-preview.failed {
+    background: #f44336;
+}
+
+.tooltip-preview.warning {
+    background: #ffc107;
+}
+
 .grid-container {
     overflow: auto;
     background: #f8f9fa;

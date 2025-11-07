@@ -75,6 +75,8 @@
                     </div>
                 </div>
                 <button id="exportData" class="btn-secondary">Export Data (JSON)</button>
+                <button id="importData" class="btn-secondary">Import from JSON</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
                 <button id="clearAll" class="btn-danger">Clear All Measurements</button>
             </div>
 
@@ -109,6 +111,12 @@
                 <div id="crossbarGrid"></div>
             </div>
         </div>
+    </div>
+
+    <!-- Hover tooltip for device coordinates -->
+    <div id="deviceTooltip" class="device-tooltip" style="display: none;">
+        <div class="tooltip-coords"></div>
+        <div class="tooltip-preview"></div>
     </div>
 
     <!-- Gun.js for real-time sync -->
