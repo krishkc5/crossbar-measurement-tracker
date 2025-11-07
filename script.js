@@ -1,15 +1,17 @@
-// State management
+// Initialize Gun.js with public relay peers for zero-config setup
+const gun = Gun(['https://gun-manhattan.herokuapp.com/gun', 'https://gun-us.herokuapp.com/gun']);
+const entriesDB = gun.get('crossbar-entries');
+
 let currentEntry = null;
 let entries = [];
+let isUpdating = false;
 
-// Load entries from localStorage on page load
 window.addEventListener('DOMContentLoaded', () => {
-    loadEntriesFromStorage();
-    updateEntrySelector();
     setupEventListeners();
+    loadEntries();
+    monitorConnection();
 });
 
-// Setup all event listeners
 function setupEventListeners() {
     document.getElementById('createEntry').addEventListener('click', createNewEntry);
     document.getElementById('loadEntry').addEventListener('click', loadSelectedEntry);
@@ -18,7 +20,68 @@ function setupEventListeners() {
     document.getElementById('clearAll').addEventListener('click', clearAllMeasurements);
 }
 
-// Create a new entry
+function monitorConnection() {
+    updateConnectionStatus(true, 'Connected');
+
+    // Simple connection check
+    setInterval(() => {
+        const status = navigator.onLine;
+        updateConnectionStatus(status, status ? 'Connected' : 'Offline');
+    }, 5000);
+}
+
+function updateConnectionStatus(isConnected, message) {
+    const statusElement = document.getElementById('connectionStatus');
+    const statusText = document.getElementById('statusText');
+
+    statusElement.className = 'connection-status ' + (isConnected ? 'connected' : 'disconnected');
+    statusText.textContent = message;
+}
+
+function loadEntries() {
+    entriesDB.map().on((data, key) => {
+        if (!data || data === null) return;
+
+        isUpdating = true;
+
+        const existingIndex = entries.findIndex(e => e.name === data.name);
+        if (existingIndex >= 0) {
+            entries[existingIndex] = data;
+        } else {
+            entries.push(data);
+        }
+
+        updateEntrySelector();
+
+        if (currentEntry && currentEntry.name === data.name) {
+            currentEntry = data;
+            updateStatistics();
+            updateGridCells();
+        }
+
+        isUpdating = false;
+    });
+}
+
+function saveEntry(entry) {
+    if (isUpdating) return;
+
+    const key = sanitizeKey(entry.name);
+    entriesDB.get(key).put(entry);
+}
+
+function deleteEntry(entryName) {
+    const key = sanitizeKey(entryName);
+    entriesDB.get(key).put(null);
+
+    entries = entries.filter(e => e.name !== entryName);
+    updateEntrySelector();
+}
+
+function sanitizeKey(key) {
+    return key.replace(/[^a-zA-Z0-9-_]/g, '_');
+}
+
 function createNewEntry() {
     const name = document.getElementById('entryName').value.trim();
     const size = parseInt(document.getElementById('arraySize').value);
@@ -28,7 +91,6 @@ function createNewEntry() {
         return;
     }
 
-    // Check if entry with same name exists
     if (entries.find(e => e.name === name)) {
         alert('An entry with this name already exists');
         return;
@@ -38,19 +100,16 @@ function createNewEntry() {
         name: name,
         size: size,
         createdAt: new Date().toISOString(),
-        measurements: Array(size * size).fill(0) // 0: unmeasured, 1: success, 2: failed, 3: warning
+        lastModified: new Date().toISOString(),
+        measurements: Array(size * size).fill(0)
     };
 
-    entries.push(entry);
-    saveEntriesToStorage();
-    updateEntrySelector();
+    saveEntry(entry);
     loadEntry(entry);
 
-    // Clear the input
     document.getElementById('entryName').value = '';
 }
 
-// Load a selected entry
 function loadSelectedEntry() {
     const selector = document.getElementById('entrySelector');
     const selectedName = selector.value;
@@ -66,7 +125,6 @@ function loadSelectedEntry() {
     }
 }
 
-// Delete a selected entry
 function deleteSelectedEntry() {
     const selector = document.getElementById('entrySelector');
     const selectedName = selector.value;
@@ -76,33 +134,29 @@ function deleteSelectedEntry() {
         return;
     }
 
-    if (!confirm(`Are you sure you want to delete entry "${selectedName}"?`)) {
+    if (!confirm(`Delete "${selectedName}"? This will remove it for everyone.`)) {
         return;
     }
 
-    entries = entries.filter(e => e.name !== selectedName);
-    saveEntriesToStorage();
-    updateEntrySelector();
+    deleteEntry(selectedName);
 
-    // If the deleted entry was currently loaded, hide the view
     if (currentEntry && currentEntry.name === selectedName) {
         currentEntry = null;
         document.getElementById('currentEntry').style.display = 'none';
     }
 }
 
-// Load an entry and display it
 function loadEntry(entry) {
     currentEntry = entry;
     document.getElementById('currentEntry').style.display = 'block';
     document.getElementById('currentEntryName').textContent = entry.name;
-    document.getElementById('currentArraySize').textContent = `${entry.size}x${entry.size} Array (Created: ${new Date(entry.createdAt).toLocaleString()})`;
+    document.getElementById('currentArraySize').textContent =
+        `${entry.size}x${entry.size} Array (Created: ${new Date(entry.createdAt).toLocaleString()})`;
 
     renderGrid();
     updateStatistics();
 }
 
-// Render the crossbar grid
 function renderGrid() {
     const grid = document.getElementById('crossbarGrid');
     grid.innerHTML = '';
@@ -110,7 +164,6 @@ function renderGrid() {
     const size = currentEntry.size;
     grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
 
-    // Add class for large arrays to make cells smaller
     if (size > 32) {
         grid.classList.add('large');
     } else {
@@ -126,52 +179,45 @@ function renderGrid() {
         const col = i % size;
         cell.title = `Device [${row}, ${col}]`;
 
-        // Set initial state
         updateCellAppearance(cell, currentEntry.measurements[i]);
-
-        // Add click handler
         cell.addEventListener('click', () => handleCellClick(i));
 
         grid.appendChild(cell);
     }
 }
 
-// Handle cell click - cycle through states
-function handleCellClick(index) {
-    // Cycle: 0 (unmeasured) -> 1 (success) -> 2 (failed) -> 3 (warning) -> 0
-    currentEntry.measurements[index] = (currentEntry.measurements[index] + 1) % 4;
+function updateGridCells() {
+    if (!currentEntry) return;
 
-    // Update the cell appearance
-    const cell = document.querySelector(`[data-index="${index}"]`);
-    updateCellAppearance(cell, currentEntry.measurements[index]);
-
-    // Update statistics
-    updateStatistics();
-
-    // Save to storage
-    saveEntriesToStorage();
-}
-
-// Update cell appearance based on state
-function updateCellAppearance(cell, state) {
-    cell.classList.remove('success', 'failed', 'warning');
-
-    switch(state) {
-        case 1: // Success
-            cell.classList.add('success');
-            break;
-        case 2: // Failed
-            cell.classList.add('failed');
-            break;
-        case 3: // Warning
-            cell.classList.add('warning');
-            break;
-        default: // Unmeasured
-            break;
+    for (let i = 0; i < currentEntry.measurements.length; i++) {
+        const cell = document.querySelector(`[data-index="${i}"]`);
+        if (cell) {
+            updateCellAppearance(cell, currentEntry.measurements[i]);
+        }
     }
 }
 
-// Update statistics display
+function handleCellClick(index) {
+    if (isUpdating) return;
+
+    currentEntry.measurements[index] = (currentEntry.measurements[index] + 1) % 4;
+    currentEntry.lastModified = new Date().toISOString();
+
+    const cell = document.querySelector(`[data-index="${index}"]`);
+    updateCellAppearance(cell, currentEntry.measurements[index]);
+
+    updateStatistics();
+    saveEntry(currentEntry);
+}
+
+function updateCellAppearance(cell, state) {
+    cell.classList.remove('success', 'failed', 'warning');
+
+    if (state === 1) cell.classList.add('success');
+    else if (state === 2) cell.classList.add('failed');
+    else if (state === 3) cell.classList.add('warning');
+}
+
 function updateStatistics() {
     if (!currentEntry) return;
 
@@ -195,9 +241,9 @@ function updateStatistics() {
     document.getElementById('unmeasuredPercent').textContent = `(${((unmeasuredCount / total) * 100).toFixed(1)}%)`;
 }
 
-// Update the entry selector dropdown
 function updateEntrySelector() {
     const selector = document.getElementById('entrySelector');
+    const currentSelection = selector.value;
     selector.innerHTML = '';
 
     if (entries.length === 0) {
@@ -212,10 +258,13 @@ function updateEntrySelector() {
             option.textContent = `${entry.name} (${entry.size}x${entry.size})`;
             selector.appendChild(option);
         });
+
+        if (currentSelection && entries.find(e => e.name === currentSelection)) {
+            selector.value = currentSelection;
+        }
     }
 }
 
-// Export current entry data as JSON
 function exportCurrentEntry() {
     if (!currentEntry) return;
 
@@ -224,6 +273,7 @@ function exportCurrentEntry() {
         name: currentEntry.name,
         size: size,
         createdAt: currentEntry.createdAt,
+        lastModified: currentEntry.lastModified,
         measurements: {
             raw: currentEntry.measurements,
             grid: []
@@ -240,7 +290,7 @@ function exportCurrentEntry() {
         misalignedDevices: []
     };
 
-    // Convert to 2D grid format
+    // Convert to 2D grid
     for (let i = 0; i < size; i++) {
         const row = [];
         for (let j = 0; j < size; j++) {
@@ -249,26 +299,21 @@ function exportCurrentEntry() {
         exportData.measurements.grid.push(row);
     }
 
-    // List coordinates of each device type
+    // List device coordinates by type
     for (let i = 0; i < currentEntry.measurements.length; i++) {
         const row = Math.floor(i / size);
         const col = i % size;
         const coord = [row, col];
 
-        switch(currentEntry.measurements[i]) {
-            case 1:
-                exportData.successfulDevices.push(coord);
-                break;
-            case 2:
-                exportData.failedDevices.push(coord);
-                break;
-            case 3:
-                exportData.misalignedDevices.push(coord);
-                break;
+        if (currentEntry.measurements[i] === 1) {
+            exportData.successfulDevices.push(coord);
+        } else if (currentEntry.measurements[i] === 2) {
+            exportData.failedDevices.push(coord);
+        } else if (currentEntry.measurements[i] === 3) {
+            exportData.misalignedDevices.push(coord);
         }
     }
 
-    // Create and download JSON file
     const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
@@ -281,29 +326,17 @@ function exportCurrentEntry() {
     URL.revokeObjectURL(url);
 }
 
-// Clear all measurements in current entry
 function clearAllMeasurements() {
     if (!currentEntry) return;
 
-    if (!confirm('Are you sure you want to clear all measurements? This cannot be undone.')) {
+    if (!confirm('Clear all measurements? This affects everyone viewing this entry.')) {
         return;
     }
 
     currentEntry.measurements = Array(currentEntry.size * currentEntry.size).fill(0);
-    saveEntriesToStorage();
-    renderGrid();
+    currentEntry.lastModified = new Date().toISOString();
+
+    saveEntry(currentEntry);
+    updateGridCells();
     updateStatistics();
-}
-
-// Save entries to localStorage
-function saveEntriesToStorage() {
-    localStorage.setItem('crossbarEntries', JSON.stringify(entries));
-}
-
-// Load entries from localStorage
-function loadEntriesFromStorage() {
-    const stored = localStorage.getItem('crossbarEntries');
-    if (stored) {
-        entries = JSON.parse(stored);
-    }
 }

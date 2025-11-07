@@ -10,13 +10,17 @@
     <div class="container">
         <header>
             <h1>Crossbar Array Measurement Tracker</h1>
-            <p class="subtitle">Track ferroelectric diode measurements across crossbar arrays</p>
+            <p class="subtitle">Track ferroelectric diode measurements</p>
+            <div id="connectionStatus" class="connection-status disconnected">
+                <span class="status-dot"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
         </header>
 
         <div class="controls">
             <div class="control-group">
                 <h3>Create New Entry</h3>
-                <input type="text" id="entryName" placeholder="Enter entry name (e.g., Array-2024-01-15)">
+                <input type="text" id="entryName" placeholder="e.g., Wafer-A-Nov-7-2024">
                 <select id="arraySize">
                     <option value="8">8x8 Array</option>
                     <option value="128">128x128 Array (2kB)</option>
@@ -90,6 +94,8 @@
         </div>
     </div>
 
+    <!-- Gun.js for real-time sync -->
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
