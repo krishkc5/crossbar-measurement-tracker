@@ -18,6 +18,18 @@ function setupEventListeners() {
     document.getElementById('deleteEntry').addEventListener('click', deleteSelectedEntry);
     document.getElementById('exportData').addEventListener('click', exportCurrentEntry);
     document.getElementById('clearAll').addEventListener('click', clearAllMeasurements);
+
+    // Quick navigation
+    document.getElementById('goToDevice').addEventListener('click', goToDevice);
+    document.getElementById('cycleDevice').addEventListener('click', cycleDeviceByCoords);
+
+    // Enter key support
+    document.getElementById('bottomElectrode').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') goToDevice();
+    });
+    document.getElementById('topElectrode').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') goToDevice();
+    });
 }
 
 function monitorConnection() {
@@ -339,4 +351,81 @@ function clearAllMeasurements() {
     saveEntry(currentEntry);
     updateGridCells();
     updateStatistics();
+}
+
+// Quick navigation functions
+function getDeviceIndex(bottom, top) {
+    if (!currentEntry) return -1;
+
+    const b = parseInt(bottom);
+    const t = parseInt(top);
+    const size = currentEntry.size;
+
+    if (isNaN(b) || isNaN(t) || b < 0 || b >= size || t < 0 || t >= size) {
+        return -1;
+    }
+
+    return b * size + t;
+}
+
+function goToDevice() {
+    const bottom = document.getElementById('bottomElectrode').value;
+    const top = document.getElementById('topElectrode').value;
+    const index = getDeviceIndex(bottom, top);
+
+    if (index < 0) {
+        alert('Please enter valid coordinates (B and T must be between 0 and ' + (currentEntry.size - 1) + ')');
+        return;
+    }
+
+    const cell = document.querySelector(`[data-index="${index}"]`);
+    if (cell) {
+        // Remove previous highlights
+        document.querySelectorAll('.device-cell.highlight').forEach(c => {
+            c.classList.remove('highlight');
+        });
+
+        // Highlight and scroll to cell
+        cell.classList.add('highlight');
+        cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+
+        // Remove highlight after animation
+        setTimeout(() => {
+            cell.classList.remove('highlight');
+        }, 1000);
+    }
+}
+
+function cycleDeviceByCoords() {
+    const bottom = document.getElementById('bottomElectrode').value;
+    const top = document.getElementById('topElectrode').value;
+    const index = getDeviceIndex(bottom, top);
+
+    if (index < 0) {
+        alert('Please enter valid coordinates (B and T must be between 0 and ' + (currentEntry.size - 1) + ')');
+        return;
+    }
+
+    handleCellClick(index);
+
+    // Also highlight the cell briefly
+    const cell = document.querySelector(`[data-index="${index}"]`);
+    if (cell) {
+        cell.classList.add('highlight');
+        setTimeout(() => {
+            cell.classList.remove('highlight');
+        }, 500);
+    }
+
+    // Auto-increment to next device for easier sequential entry
+    const t = parseInt(top);
+    const b = parseInt(bottom);
+    const size = currentEntry.size;
+
+    if (t < size - 1) {
+        document.getElementById('topElectrode').value = t + 1;
+    } else if (b < size - 1) {
+        document.getElementById('bottomElectrode').value = b + 1;
+        document.getElementById('topElectrode').value = 0;
+    }
 }

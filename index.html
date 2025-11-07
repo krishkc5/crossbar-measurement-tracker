@@ -88,6 +88,23 @@
                 </div>
             </div>
 
+            <div class="quick-nav">
+                <h4>Quick Navigate (for 2kB arrays)</h4>
+                <div class="coord-inputs">
+                    <div class="input-group">
+                        <label for="bottomElectrode">Bottom Electrode (B):</label>
+                        <input type="number" id="bottomElectrode" min="0" max="127" placeholder="0-127">
+                    </div>
+                    <div class="input-group">
+                        <label for="topElectrode">Top Electrode (T):</label>
+                        <input type="number" id="topElectrode" min="0" max="127" placeholder="0-127">
+                    </div>
+                    <button id="goToDevice" class="btn-secondary">Go to Device</button>
+                    <button id="cycleDevice" class="btn-primary">Mark Device</button>
+                </div>
+                <p class="hint">Press Enter in either field to jump to device, or click "Mark Device" to cycle its state</p>
+            </div>
+
             <div class="grid-container">
                 <div id="crossbarGrid"></div>
             </div>

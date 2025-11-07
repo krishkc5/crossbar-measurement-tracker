@@ -298,6 +298,69 @@ button {
     background: #ffc107;
 }
 
+.quick-nav {
+    background: #e3f2fd;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #2196F3;
+}
+
+.quick-nav h4 {
+    color: #1565c0;
+    margin-bottom: 15px;
+}
+
+.coord-inputs {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.input-group label {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #1565c0;
+}
+
+.input-group input[type="number"] {
+    width: 120px;
+    padding: 8px;
+    border: 1px solid #2196F3;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.hint {
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 0;
+    font-size: 0.85em;
+    color: #1565c0;
+    font-style: italic;
+}
+
+.device-cell.highlight {
+    animation: highlight-flash 1s ease-in-out;
+    box-shadow: 0 0 0 3px #2196F3;
+}
+
+@keyframes highlight-flash {
+    0%, 100% {
+        box-shadow: 0 0 0 3px #2196F3;
+    }
+    50% {
+        box-shadow: 0 0 0 6px #2196F3;
+    }
+}
+
 .grid-container {
     overflow: auto;
     background: #f8f9fa;
