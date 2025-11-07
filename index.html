@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossbar Array Measurement Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Crossbar Array Measurement Tracker</h1>
+            <p class="subtitle">Track ferroelectric diode measurements across crossbar arrays</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <h3>Create New Entry</h3>
+                <input type="text" id="entryName" placeholder="Enter entry name (e.g., Array-2024-01-15)">
+                <select id="arraySize">
+                    <option value="8">8x8 Array</option>
+                    <option value="128">128x128 Array (2kB)</option>
+                </select>
+                <button id="createEntry" class="btn-primary">Create New Entry</button>
+            </div>
+
+            <div class="control-group">
+                <h3>Existing Entries</h3>
+                <select id="entrySelector" size="5">
+                    <option value="">No entries yet</option>
+                </select>
+                <div class="entry-buttons">
+                    <button id="loadEntry" class="btn-secondary">Load Entry</button>
+                    <button id="deleteEntry" class="btn-danger">Delete Entry</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="currentEntry" class="current-entry" style="display: none;">
+            <div class="entry-header">
+                <h2 id="currentEntryName"></h2>
+                <p id="currentArraySize"></p>
+            </div>
+
+            <div class="stats-panel">
+                <h3>Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Devices:</span>
+                        <span id="totalDevices" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item success">
+                        <span class="stat-label">✓ Successful:</span>
+                        <span id="successCount" class="stat-value">0</span>
+                        <span class="stat-percent" id="successPercent">(0%)</span>
+                    </div>
+                    <div class="stat-item failed">
+                        <span class="stat-label">✗ Failed:</span>
+                        <span id="failedCount" class="stat-value">0</span>
+                        <span class="stat-percent" id="failedPercent">(0%)</span>
+                    </div>
+                    <div class="stat-item warning">
+                        <span class="stat-label">⚠ Misaligned:</span>
+                        <span id="warningCount" class="stat-value">0</span>
+                        <span class="stat-percent" id="warningPercent">(0%)</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Unmeasured:</span>
+                        <span id="unmeasuredCount" class="stat-value">0</span>
+                        <span class="stat-percent" id="unmeasuredPercent">(0%)</span>
+                    </div>
+                </div>
+                <button id="exportData" class="btn-secondary">Export Data (JSON)</button>
+                <button id="clearAll" class="btn-danger">Clear All Measurements</button>
+            </div>
+
+            <div class="legend">
+                <h4>Legend:</h4>
+                <div class="legend-items">
+                    <div class="legend-item"><span class="legend-box empty"></span> Unmeasured</div>
+                    <div class="legend-item"><span class="legend-box success"></span> Successful</div>
+                    <div class="legend-item"><span class="legend-box failed"></span> Failed</div>
+                    <div class="legend-item"><span class="legend-box warning"></span> Misaligned</div>
+                </div>
+            </div>
+
+            <div class="grid-container">
+                <div id="crossbarGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
