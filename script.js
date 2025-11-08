@@ -665,15 +665,29 @@ function handleArrowKeyNavigation(e) {
  */
 function showEnhancedTooltip(e, row, col, state, timestamp) {
     const tooltip = document.getElementById('deviceTooltip');
+    if (!tooltip) return;
+
     const coords = tooltip.querySelector('.tooltip-coords');
     const preview = tooltip.querySelector('.tooltip-preview');
 
-    // Build tooltip content
-    let tooltipText = `B: ${row} | T: ${col}`;
+    if (!coords || !preview) return;
+
+    // Clear previous content
+    coords.innerHTML = '';
+
+    // Build tooltip content with proper line breaks
+    const coordsLine = document.createElement('div');
+    coordsLine.textContent = `B: ${row} | T: ${col}`;
+    coordsLine.style.fontWeight = 'bold';
+    coordsLine.style.marginBottom = '4px';
+    coords.appendChild(coordsLine);
 
     // Add state label
     const stateLabels = ['Unmeasured', 'Successful', 'Failed', 'Misaligned'];
-    tooltipText += `\nState: ${stateLabels[state]}`;
+    const stateLine = document.createElement('div');
+    stateLine.textContent = `State: ${stateLabels[state]}`;
+    stateLine.style.fontSize = '13px';
+    coords.appendChild(stateLine);
 
     // Add timestamp if available
     if (timestamp) {
@@ -697,10 +711,13 @@ function showEnhancedTooltip(e, row, col, state, timestamp) {
             timeAgo = date.toLocaleDateString();
         }
 
-        tooltipText += `\nLast changed: ${timeAgo}`;
+        const timeLine = document.createElement('div');
+        timeLine.textContent = `Last changed: ${timeAgo}`;
+        timeLine.style.fontSize = '12px';
+        timeLine.style.color = '#666';
+        timeLine.style.marginTop = '4px';
+        coords.appendChild(timeLine);
     }
-
-    coords.textContent = tooltipText;
 
     preview.classList.remove('success', 'failed', 'warning');
     if (state === 1) preview.classList.add('success');

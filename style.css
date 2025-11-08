@@ -418,12 +418,10 @@ button {
 
 .tooltip-coords {
     font-size: 14px;
-    font-weight: 600;
     color: #1565c0;
     margin-bottom: 8px;
     text-align: center;
-    white-space: pre-line;
-    line-height: 1.5;
+    line-height: 1.4;
 }
 
 .tooltip-preview {
