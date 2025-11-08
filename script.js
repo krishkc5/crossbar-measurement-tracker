@@ -29,6 +29,9 @@ let entries = [];
 /** @type {boolean} Flag to prevent recursive updates during sync */
 let isUpdating = false;
 
+/** @type {number|null} Currently selected cell index for keyboard navigation */
+let selectedCellIndex = null;
+
 // ============================================================================
 // Application Initialization
 // ============================================================================
@@ -68,6 +71,9 @@ function setupEventListeners() {
     // Enhanced keyboard navigation
     document.getElementById('bottomElectrode').addEventListener('keydown', handleBottomElectrodeKey);
     document.getElementById('topElectrode').addEventListener('keydown', handleTopElectrodeKey);
+
+    // Arrow key navigation in grid
+    document.addEventListener('keydown', handleArrowKeyNavigation);
 }
 
 // ============================================================================
@@ -193,7 +199,8 @@ function createNewEntry() {
         size: size,
         createdAt: new Date().toISOString(),
         lastModified: new Date().toISOString(),
-        measurements: Array(size * size).fill(0)
+        measurements: Array(size * size).fill(0),
+        timestamps: Array(size * size).fill(null) // Track when each cell was last modified
     };
 
     saveEntry(entry);
@@ -262,26 +269,43 @@ function renderGrid() {
         grid.classList.remove('large');
     }
 
+    // Ensure timestamps array exists (for backward compatibility)
+    if (!currentEntry.timestamps) {
+        currentEntry.timestamps = Array(size * size).fill(null);
+    }
+
     for (let i = 0; i < size * size; i++) {
         const cell = document.createElement('div');
         cell.className = 'device-cell';
         cell.dataset.index = i;
+        cell.tabIndex = 0; // Make cells focusable for keyboard navigation
 
         const row = Math.floor(i / size);
         const col = i % size;
-        cell.title = `Device [${row}, ${col}]`;
 
         updateCellAppearance(cell, currentEntry.measurements[i]);
-        cell.addEventListener('click', () => handleCellClick(i));
 
-        // Add hover tooltip for large arrays
-        if (size > 32) {
-            cell.addEventListener('mouseenter', (e) => showTooltip(e, row, col, currentEntry.measurements[i]));
-            cell.addEventListener('mouseleave', hideTooltip);
-        }
+        // Click handler
+        cell.addEventListener('click', () => {
+            selectCell(i);
+            handleCellClick(i);
+        });
+
+        // Focus handler for keyboard navigation
+        cell.addEventListener('focus', () => selectCell(i));
+
+        // Enhanced hover tooltip with timestamp
+        cell.addEventListener('mouseenter', (e) => {
+            const timestamp = currentEntry.timestamps[i];
+            showEnhancedTooltip(e, row, col, currentEntry.measurements[i], timestamp);
+        });
+        cell.addEventListener('mouseleave', hideTooltip);
 
         grid.appendChild(cell);
     }
+
+    // Clear selection when grid is re-rendered
+    selectedCellIndex = null;
 }
 
 function updateGridCells() {
@@ -300,6 +324,12 @@ function handleCellClick(index) {
 
     currentEntry.measurements[index] = (currentEntry.measurements[index] + 1) % 4;
     currentEntry.lastModified = new Date().toISOString();
+
+    // Record timestamp for this cell
+    if (!currentEntry.timestamps) {
+        currentEntry.timestamps = Array(currentEntry.size * currentEntry.size).fill(null);
+    }
+    currentEntry.timestamps[index] = new Date().toISOString();
 
     const cell = document.querySelector(`[data-index="${index}"]`);
     updateCellAppearance(cell, currentEntry.measurements[index]);
@@ -547,13 +577,130 @@ function handleTopElectrodeKey(e) {
     }
 }
 
-// Tooltip functions
-function showTooltip(e, row, col, state) {
+// ============================================================================
+// Cell Selection and Keyboard Navigation
+// ============================================================================
+
+/**
+ * Select a cell and update visual indication
+ * @param {number} index - Linear index of the cell to select
+ */
+function selectCell(index) {
+    // Remove previous selection
+    if (selectedCellIndex !== null) {
+        const prevCell = document.querySelector(`[data-index="${selectedCellIndex}"]`);
+        if (prevCell) {
+            prevCell.classList.remove('selected');
+        }
+    }
+
+    // Set new selection
+    selectedCellIndex = index;
+    const cell = document.querySelector(`[data-index="${index}"]`);
+    if (cell) {
+        cell.classList.add('selected');
+        cell.focus();
+    }
+}
+
+/**
+ * Handle arrow key navigation between cells
+ * @param {KeyboardEvent} e - Keyboard event
+ */
+function handleArrowKeyNavigation(e) {
+    if (!currentEntry || selectedCellIndex === null) return;
+
+    // Only handle arrow keys and space
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) return;
+
+    // Prevent default scrolling behavior
+    e.preventDefault();
+
+    const size = currentEntry.size;
+    const row = Math.floor(selectedCellIndex / size);
+    const col = selectedCellIndex % size;
+    let newIndex = selectedCellIndex;
+
+    switch (e.key) {
+        case 'ArrowUp':
+            if (row > 0) newIndex = selectedCellIndex - size;
+            break;
+        case 'ArrowDown':
+            if (row < size - 1) newIndex = selectedCellIndex + size;
+            break;
+        case 'ArrowLeft':
+            if (col > 0) newIndex = selectedCellIndex - 1;
+            break;
+        case 'ArrowRight':
+            if (col < size - 1) newIndex = selectedCellIndex + 1;
+            break;
+        case ' ':
+            // Space bar cycles the cell state
+            handleCellClick(selectedCellIndex);
+            return;
+    }
+
+    if (newIndex !== selectedCellIndex) {
+        selectCell(newIndex);
+
+        // Scroll into view if needed
+        const cell = document.querySelector(`[data-index="${newIndex}"]`);
+        if (cell) {
+            cell.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
+    }
+}
+
+// ============================================================================
+// Enhanced Tooltip Functions
+// ============================================================================
+
+/**
+ * Show enhanced tooltip with timestamp information
+ * @param {MouseEvent} e - Mouse event
+ * @param {number} row - Row coordinate
+ * @param {number} col - Column coordinate
+ * @param {number} state - Measurement state (0-3)
+ * @param {string|null} timestamp - ISO timestamp of last modification
+ */
+function showEnhancedTooltip(e, row, col, state, timestamp) {
     const tooltip = document.getElementById('deviceTooltip');
     const coords = tooltip.querySelector('.tooltip-coords');
     const preview = tooltip.querySelector('.tooltip-preview');
 
-    coords.textContent = `B: ${row} | T: ${col}`;
+    // Build tooltip content
+    let tooltipText = `B: ${row} | T: ${col}`;
+
+    // Add state label
+    const stateLabels = ['Unmeasured', 'Successful', 'Failed', 'Misaligned'];
+    tooltipText += `\nState: ${stateLabels[state]}`;
+
+    // Add timestamp if available
+    if (timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        let timeAgo;
+        if (diffMins < 1) {
+            timeAgo = 'just now';
+        } else if (diffMins < 60) {
+            timeAgo = `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+        } else if (diffHours < 24) {
+            timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        } else if (diffDays < 7) {
+            timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        } else {
+            timeAgo = date.toLocaleDateString();
+        }
+
+        tooltipText += `\nLast changed: ${timeAgo}`;
+    }
+
+    coords.textContent = tooltipText;
 
     preview.classList.remove('success', 'failed', 'warning');
     if (state === 1) preview.classList.add('success');

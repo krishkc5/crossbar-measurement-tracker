@@ -388,6 +388,13 @@ button {
     box-shadow: 0 0 0 3px #2196F3;
 }
 
+.device-cell.selected {
+    outline: 3px solid #667eea;
+    outline-offset: -3px;
+    box-shadow: 0 0 0 2px #667eea, inset 0 0 8px rgba(102, 126, 234, 0.3);
+    z-index: 10;
+}
+
 @keyframes highlight-flash {
     0%, 100% {
         box-shadow: 0 0 0 3px #2196F3;
@@ -410,11 +417,13 @@ button {
 }
 
 .tooltip-coords {
-    font-size: 16px;
-    font-weight: bold;
+    font-size: 14px;
+    font-weight: 600;
     color: #1565c0;
     margin-bottom: 8px;
     text-align: center;
+    white-space: pre-line;
+    line-height: 1.5;
 }
 
 .tooltip-preview {
