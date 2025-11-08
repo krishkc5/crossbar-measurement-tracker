@@ -737,13 +737,16 @@ function showEnhancedTooltip(e, row, col, state, timestamp) {
     else if (state === 3) preview.classList.add('warning');
 
     tooltip.style.display = 'block';
-    tooltip.style.left = (e.pageX + 15) + 'px';
-    tooltip.style.top = (e.pageY + 15) + 'px';
+    // Use clientX/clientY for viewport coordinates (fixed positioning)
+    tooltip.style.left = (e.clientX + 15) + 'px';
+    tooltip.style.top = (e.clientY + 15) + 'px';
 
     console.log('Tooltip displayed at:', {
         left: tooltip.style.left,
         top: tooltip.style.top,
-        display: tooltip.style.display
+        display: tooltip.style.display,
+        clientX: e.clientX,
+        clientY: e.clientY
     });
 }
 
