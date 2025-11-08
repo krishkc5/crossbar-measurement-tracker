@@ -430,6 +430,8 @@ button {
     border-radius: 4px;
     border: 2px solid #ddd;
     background: white;
+    margin: 0 auto;
+    margin-top: 8px;
 }
 
 .tooltip-preview.success {
