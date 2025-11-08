@@ -664,13 +664,25 @@ function handleArrowKeyNavigation(e) {
  * @param {string|null} timestamp - ISO timestamp of last modification
  */
 function showEnhancedTooltip(e, row, col, state, timestamp) {
+    console.log('showEnhancedTooltip called:', {row, col, state, timestamp});
+
     const tooltip = document.getElementById('deviceTooltip');
-    if (!tooltip) return;
+    console.log('Tooltip element:', tooltip);
+
+    if (!tooltip) {
+        console.error('Tooltip element not found!');
+        return;
+    }
 
     const coords = tooltip.querySelector('.tooltip-coords');
     const preview = tooltip.querySelector('.tooltip-preview');
 
-    if (!coords || !preview) return;
+    console.log('Coords element:', coords, 'Preview element:', preview);
+
+    if (!coords || !preview) {
+        console.error('Tooltip child elements not found!');
+        return;
+    }
 
     // Clear previous content
     coords.innerHTML = '';
@@ -727,6 +739,12 @@ function showEnhancedTooltip(e, row, col, state, timestamp) {
     tooltip.style.display = 'block';
     tooltip.style.left = (e.pageX + 15) + 'px';
     tooltip.style.top = (e.pageY + 15) + 'px';
+
+    console.log('Tooltip displayed at:', {
+        left: tooltip.style.left,
+        top: tooltip.style.top,
+        display: tooltip.style.display
+    });
 }
 
 function hideTooltip() {
