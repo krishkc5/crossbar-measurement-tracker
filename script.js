@@ -664,25 +664,13 @@ function handleArrowKeyNavigation(e) {
  * @param {string|null} timestamp - ISO timestamp of last modification
  */
 function showEnhancedTooltip(e, row, col, state, timestamp) {
-    console.log('showEnhancedTooltip called:', {row, col, state, timestamp});
-
     const tooltip = document.getElementById('deviceTooltip');
-    console.log('Tooltip element:', tooltip);
-
-    if (!tooltip) {
-        console.error('Tooltip element not found!');
-        return;
-    }
+    if (!tooltip) return;
 
     const coords = tooltip.querySelector('.tooltip-coords');
     const preview = tooltip.querySelector('.tooltip-preview');
 
-    console.log('Coords element:', coords, 'Preview element:', preview);
-
-    if (!coords || !preview) {
-        console.error('Tooltip child elements not found!');
-        return;
-    }
+    if (!coords || !preview) return;
 
     // Clear previous content
     coords.innerHTML = '';
@@ -740,14 +728,6 @@ function showEnhancedTooltip(e, row, col, state, timestamp) {
     // Use clientX/clientY for viewport coordinates (fixed positioning)
     tooltip.style.left = (e.clientX + 15) + 'px';
     tooltip.style.top = (e.clientY + 15) + 'px';
-
-    console.log('Tooltip displayed at:', {
-        left: tooltip.style.left,
-        top: tooltip.style.top,
-        display: tooltip.style.display,
-        clientX: e.clientX,
-        clientY: e.clientY
-    });
 }
 
 function hideTooltip() {
